@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-around;
+      height: 100vh;
+      overflow: hidden;
+      background: url(https://www.wallpaperup.com/uploads/wallpapers/2013/03/20/54857/c7e143e0d4e2d3d1431a5c011236868e-1000.jpg);
+      background-repeat: no-repeat;
+      background-size: cover;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    .toggles {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-around;
+      padding: 5px;
+      width: 100%;
+    }
+
+    .flag {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: chartreuse;
+      box-shadow: 0 0 10px chartreuse;
+    }
+
+    .flag.changeFlag {
+      background: red;
+      box-shadow: 0 0 10px red;
+    }
+
+    .cat {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      width: 400px;
+      height: 430px;
+      border-radius: 15px;
+      overflow: hidden;
+      border: 5px solid rgb(216, 187, 20);
+      background-color: rgb(216, 187, 20);
+    }
+
+    .cat_img {
+      width: 100%;
+      height: auto;
+    }
+
+    .plant {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 480px;
+      height: 366px;
+      position: relative;
+      border: 5px solid rgb(216, 187, 20);
+      background-color: rgb(216, 187, 20);
+      border-radius: 10px;
+      overflow: hidden;
+      overflow-wrap: anywhere;
+    }
+
+    .point_wrapper {
+      position: absolute;
+      top:1rem;
+      left:1rem;
+      animation: pulse 2s infinite;
+    }
+
+    .point_text {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-around;
+      line-height: 1rem;
+      color: white;
+    }
+
+    .point {
+      width: 12px;
+      height: 12px;
+      background: red;
+      border-radius: 50%;
+      margin-left: 5px;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0;
+      }
+    }
+  </style>
+  <title>Document</title>
+</head>
+<body>
+  <div class='cat'>
+    <img class='cat_img' src="https://media.giphy.com/media/905GG7MjDw61q/giphy.gif" alt="">
+    <div class="toggles">
+      <div class="flag"></div>
+      <div class="flag"></div>
+      <div class="flag"></div>
+      <div class="flag"></div>
+    </div>
+  </div>
+  <div class='plant'>
+    <img class='plant_img' src="https://media.giphy.com/media/3o6Mbg49wVSmCYW7Oo/giphy.gif" alt="">
+    <div class="point_wrapper">
+      <span class="point_text">REC<div class="point"></div></span>
+    </div>
+  </div>
+  <script>
+    let toggles = [...document.querySelector('.toggles').children];
+    const plant = document.querySelector('.plant_img');
+    const cat = document.querySelector('.cat_img');
+    const ws = new WebSocket('ws://vps.yojji.io', 'vadim_trocenko');
+
+    let levers = [false,false,false,false];
+
+    function render() {
+      toggles.forEach((element, index) => {
+        element.classList.toggle('changeFlag', levers[index]);
+      });
+    }
+
+    ws.onopen = () => console.log('opened');
+    ws.onclose = () => console.log('close');
+
+    ws.onmessage = function(response) {
+      const data = JSON.parse(response.data);
+      console.log('data',data);
+
+      if (data.token) {
+        console.log(data.token);
+        ws.close();
+        plant.src = 'https://media.giphy.com/media/IsJykcWkfTKBYwgiky/giphy-downsized-large.gif';
+        setTimeout(() => {
+          plant.src = '', plant.parentNode.innerHTML = `TOKEN ${data.token}`,
+          cat.src = 'https://media.giphy.com/media/7SfAXqgRgh0li/giphy.gif',
+          cat.parentNode.style.height = '360px';
+        }, 8800);
+        return
+      };
+
+      if (data.newState) {
+        levers = levers.map(lever => !lever);
+      }
+
+      if (levers[0] && levers[1] && levers[2] && levers[3]) {
+        ws.send(JSON.stringify({action: "powerOff", stateId: data.stateId}));
+      }
+
+      if ('pulled' in data) {
+        console.log('lev',levers);
+        levers[data.pulled] = !levers[data.pulled];
+        ws.send(JSON.stringify({action: "check", "lever1": 0, "lever2": data.pulled, stateId: data.stateId}));
+      }
+
+      if ("action" in data) {
+        if (data.same) {
+          levers[data.lever2] = levers[0];
+        } else {
+          levers[data.lever2] = !levers[0];
+        }
+      }
+      render()
+    };
+  </script>
+</body>
+</html>
